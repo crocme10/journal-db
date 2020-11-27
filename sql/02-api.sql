@@ -125,47 +125,47 @@ LANGUAGE PLPGSQL;
 -- Note this return type implies, like the rest of the schema so far,
 -- that there is only one author.
 CREATE TYPE return_document_type AS (
-    id                        UUID
-  , title                     VARCHAR(256)
-  , abstract                  TEXT
-  , document_author_id        VARCHAR(256)
-  , document_author_fullname  VARCHAR(256)
-  , document_author_resource  VARCHAR(256)
-  , content                   TEXT
-  , tags                      TEXT[]
-  , image_id                  UUID
-  , image_title               VARCHAR(256)
-  , image_author_id           UUID
-  , image_author_fullname     VARCHAR(256)
-  , image_author_resource     VARCHAR(256)
-  , image_resource            VARCHAR(256)
-  , kind                      main.KIND
-  , genre                     main.GENRE
-  , created_at                TIMESTAMPTZ
-  , updated_at                TIMESTAMPTZ
+    id                        UUID             -- (0)
+  , title                     VARCHAR(256)     -- (1)
+  , abstract                  TEXT             -- (2)
+  , document_author_id        VARCHAR(256)     -- (3)
+  , document_author_fullname  VARCHAR(256)     -- (4)
+  , document_author_resource  VARCHAR(256)     -- (5)
+  , content                   TEXT             -- (6)
+  , tags                      TEXT[]           -- (7)
+  , image_id                  UUID             -- (8)
+  , image_title               VARCHAR(256)     -- (9)
+  , image_author_id           UUID             -- (10)
+  , image_author_fullname     VARCHAR(256)     -- (11)
+  , image_author_resource     VARCHAR(256)     -- (12)
+  , image_resource            VARCHAR(256)     -- (13)
+  , kind                      main.KIND        -- (14)
+  , genre                     main.GENRE       -- (15)
+  , created_at                TIMESTAMPTZ      -- (16)
+  , updated_at                TIMESTAMPTZ      -- (17)
 );
 
 -- This is the same as return_document_type, except it does not
 -- have the content of the document. This is more suitable for
 -- listing documents.
 CREATE TYPE return_short_document_type AS (
-    id                        UUID
-  , title                     VARCHAR(256)
-  , abstract                  TEXT
-  , document_author_id        UUID
-  , document_author_fullname  VARCHAR(256)
-  , document_author_resource  VARCHAR(256)
-  , tags                      TEXT[]
-  , image_id                  UUID
-  , image_title               VARCHAR(256)
-  , image_author_id           UUID
-  , image_author_fullname     VARCHAR(256)
-  , image_author_resource     VARCHAR(256)
-  , image_resource            VARCHAR(256)
-  , kind                      main.KIND
-  , genre                     main.GENRE
-  , created_at                TIMESTAMPTZ
-  , updated_at                TIMESTAMPTZ
+    id                        UUID             -- (0)
+  , title                     VARCHAR(256)     -- (1)
+  , abstract                  TEXT             -- (2)
+  , document_author_id        UUID             -- (3)
+  , document_author_fullname  VARCHAR(256)     -- (4)
+  , document_author_resource  VARCHAR(256)     -- (5)
+  , tags                      TEXT[]           -- (6)
+  , image_id                  UUID             -- (7)
+  , image_title               VARCHAR(256)     -- (8)
+  , image_author_id           UUID             -- (9)
+  , image_author_fullname     VARCHAR(256)     -- (10)
+  , image_author_resource     VARCHAR(256)     -- (11)
+  , image_resource            VARCHAR(256)     -- (12)
+  , kind                      main.KIND        -- (13)
+  , genre                     main.GENRE       -- (14)
+  , created_at                TIMESTAMPTZ      -- (15)
+  , updated_at                TIMESTAMPTZ      -- (16)
 );
 
 CREATE OR REPLACE FUNCTION main.create_document_with_id(
@@ -221,6 +221,8 @@ END;
 $$
 LANGUAGE PLPGSQL;
 
+-- This function returns a list of shorten documents (meaning no content), suitable
+-- for printing in a list.
 CREATE OR REPLACE FUNCTION main.list_documents(
   main.KIND  -- kind  (1)
 ) RETURNS SETOF return_short_document_type
@@ -228,7 +230,7 @@ AS $$
 BEGIN
   RETURN QUERY
   SELECT d.id, d.title, d.abstract, da.id, da.fullname, da.resource, d.tags,
-         ia.id, ia.fullname, ia.resource, i.resource, d.kind, d.genre,
+         i.id, i.title, ia.id, ia.fullname, ia.resource, i.resource, d.kind, d.genre,
          d.created_at, d.updated_at
   FROM main.documents AS d
   INNER JOIN main.authors AS da ON da.id = d.author
@@ -239,6 +241,7 @@ END;
 $$
 LANGUAGE plpgsql;
 
+-- Return the document and its content
 CREATE OR REPLACE FUNCTION main.get_document_by_id(
   UUID       -- uuid  (1)
 ) RETURNS return_document_type
@@ -260,92 +263,53 @@ END;
 $$
 LANGUAGE plpgsql;
 
--- BEGIN
---   RETURN QUERY
---   SELECT d.id, d.title, d.abstract, a.fullname, d.tags, d.image, d.kind, d.genre, d.updated_at, ''
---   FROM documents AS d
---   INNER JOIN authors AS a ON a.id = d.author
---   WHERE d.kind = $1
---   ORDER BY d.updated_at DESC;
--- END;
--- $$
--- LANGUAGE plpgsql;
--- 
--- -- DROP FUNCTION document_details(uuid);
--- CREATE OR REPLACE FUNCTION document_details(
---     INOUT _id UUID
---   , OUT _title TEXT
---   , OUT _abstract TEXT
---   , OUT _author TEXT
---   , OUT _tags TEXT[]
---   , OUT _image TEXT
---   , OUT _kind kind
---   , OUT _genre genre
---   , OUT _updated_at TIMESTAMPTZ
---   , OUT _content TEXT)
--- AS $$
--- BEGIN
---   SELECT title,  abstract,  author,  tags,  image,  kind,  genre,  updated_at, content
---   INTO  _title, _abstract, _author, _tags, _image, _kind, _genre, _updated_at, _content
---   FROM documents WHERE id = _id;
--- END;
--- $$
--- LANGUAGE plpgsql;
--- -- This function returns a bit of information about each document, suitable
--- -- to be printed in a list. Basically, everything, but the content.
--- -- So that the calling function does not create a separate type, we actually
--- -- return an empty content
--- -- This function returns a bit of information about each document,
--- -- using a string to filter documents based on full text search.
--- CREATE OR REPLACE FUNCTION document_search(
---   TEXT -- query
--- )
--- RETURNS TABLE (_id UUID,
---   _title VARCHAR(256),
---   _abstract TEXT,
---   _author VARCHAR(256),
---   _tags TEXT[],
---   _image VARCHAR(256),
---   _kind kind,
---   _genre genre,
---   _updated_at TIMESTAMPTZ)
--- AS $$
--- BEGIN
---   RETURN QUERY
---   SELECT k.id, k.title, k.abstract, a.fullname, k.tags, k.image, k.kind, k.genre, k.updated_at
---   FROM authors AS a
---   INNER JOIN (
---     SELECT d.id, d.title, d.author, d.abstract, d.tags, d.image, d.kind, d.genre, d.updated_at
---     FROM documents AS d, websearch_to_tsquery($1) AS query
---     WHERE query @@ d.search
---     ORDER BY ts_rank(d.search, query) DESC
---   ) k ON a.id = k.author;
--- END;
--- $$
--- LANGUAGE plpgsql;
--- -- Search by tag
--- -- This function returns a bit of information about each document, suitable
--- -- to be printed in a list.
--- -- DROP FUNCTION document_list(kind);
--- CREATE OR REPLACE FUNCTION document_tag(kind, text)
--- RETURNS TABLE (_id UUID,
---   _title VARCHAR(256),
---   _abstract TEXT,
---   _author VARCHAR(256),
---   _tags TEXT[],
---   _image VARCHAR(256),
---   _kind kind,
---   _genre genre,
---   _updated_at TIMESTAMPTZ)
--- AS $$
--- BEGIN
---   RETURN QUERY
---   SELECT d.id, d.title, d.abstract, a.fullname, d.tags, d.image, d.kind, d.genre, d.updated_at
---   FROM documents AS d
---   INNER JOIN authors AS a ON a.id = d.author
---   WHERE d.kind = $1
---     AND d.tags @> array[$2]
---   ORDER BY d.updated_at DESC;
--- END;
--- $$
--- LANGUAGE plpgsql;
+-- This function returns a list of shorten documents (meaning no content), suitable
+-- for printing in a list.
+CREATE OR REPLACE FUNCTION main.search_documents_by_query(
+  TEXT  -- query  (1)
+) RETURNS SETOF return_short_document_type
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT d.id, d.title, d.abstract, da.id, da.fullname, da.resource, d.tags,
+         i.id, i.title, ia.id, ia.fullname, ia.resource, i.resource, d.kind, d.genre,
+         d.created_at, d.updated_at
+  FROM main.authors AS da
+  INNER JOIN (
+    SELECT d.id, d.title, d.abstract, d.author, d.image, d.tags,
+           d.kind, d.genre, d.created_at, d.updated_at
+    FROM main.documents AS d,
+         websearch_to_tsquery($1) AS query
+    WHERE query @@ d.search
+    ORDER BY ts_rank(d.search, query) DESC
+  ) d ON d.author = da.id
+  INNER JOIN main.images AS i ON i.id = d.image
+  INNER JOIN main.authors AS ia ON ia.id = i.author;
+END;
+$$
+LANGUAGE plpgsql;
+
+-- This function returns a list of shorten documents (meaning no content), suitable
+-- for printing in a list.
+CREATE OR REPLACE FUNCTION main.search_documents_by_tag(
+  TEXT  -- tag  (1)
+) RETURNS SETOF return_short_document_type
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT d.id, d.title, d.abstract, da.id, da.fullname, da.resource, d.tags,
+         i.id, i.title, ia.id, ia.fullname, ia.resource, i.resource, d.kind, d.genre,
+         d.created_at, d.updated_at
+  FROM main.authors AS da
+  INNER JOIN (
+    SELECT d.id, d.title, d.abstract, d.author, d.image, d.tags,
+           d.kind, d.genre, d.created_at, d.updated_at
+    FROM main.documents AS d
+    WHERE d.tags @> array[$1]
+    ORDER BY d.updated_at DESC
+  ) d ON d.author = da.id
+  INNER JOIN main.images AS i ON i.id = d.image
+  INNER JOIN main.authors AS ia ON ia.id = i.author;
+END;
+$$
+LANGUAGE plpgsql;
