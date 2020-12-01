@@ -128,7 +128,7 @@ CREATE TYPE return_document_type AS (
     id                        UUID             -- (0)
   , title                     VARCHAR(256)     -- (1)
   , abstract                  TEXT             -- (2)
-  , document_author_id        VARCHAR(256)     -- (3)
+  , document_author_id        UUID             -- (3)
   , document_author_fullname  VARCHAR(256)     -- (4)
   , document_author_resource  VARCHAR(256)     -- (5)
   , content                   TEXT             -- (6)
